@@ -5,7 +5,33 @@ database and an HTML/CSS/JavaScript dashboard. An ESP32 sensor node (DHT22,
 MQ-135, LDR, ultrasonic sensor, 4-channel relay) sends readings as JSON; a
 built-in simulator stands in for the hardware during the presentation.
 
-## 1. Install (once, needs internet)
+## Quickest: open index.html (no installation, no internet)
+Double-click index.html. It opens in the browser and runs the complete
+system: login, dashboard, DNN, simulator, alerts, logs, users and model
+performance. The trained neural network is built into the page in
+JavaScript, and data is kept in the browser's local storage.
+Default login: admin / admin123.
+
+The same file runs online through GitHub Pages:
+Settings > Pages > Source: Deploy from a branch > Branch: main, folder / (root) > Save.
+The site appears at https://<username>.github.io/smart-poultry-controller/
+
+The Python/MySQL version below is the full system, including the
+/api/sensor endpoint that the real ESP32 posts to.
+
+## 0. Run online with GitHub Codespaces (nothing to install on the laptop)
+1. Open this repository on github.com and sign in.
+2. Click the green **Code** button, open the **Codespaces** tab, then
+   **Create codespace on main**.
+3. Wait 2 to 3 minutes the first time while the libraries install.
+   The app starts by itself and the dashboard opens in a new browser tab.
+   If it does not open, go to the **Ports** tab and click the globe icon
+   beside port 5000.
+4. Log in with admin / admin123.
+When finished, stop the codespace (Code > Codespaces > ... > Stop) so it
+does not use up the free monthly hours. Codespaces needs internet.
+
+## 1. Install on a laptop (once, needs internet)
 1. Install Python 3.10 or newer from python.org (tick "Add Python to PATH").
 2. Open Command Prompt in this folder and run:
    pip install -r requirements.txt

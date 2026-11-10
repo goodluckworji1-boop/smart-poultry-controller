@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Poultry House Controller</title>
+<style>
+:root {
+  --paper: #EDF1EA;
+  --panel: #FFFFFF;
+  --ink: #1E2A22;
+  --muted: #5F6F64;
+  --line: #D3DBD0;
+  --barn: #2E5E3E;
+  --straw: #D4A72C;
+  --heat: #B83A2B;
+  --cold: #2D6A8E;
+  --air: #7A5C9E;
+  --ok: #3F8A4F;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #141A16; --panel: #1D2620; --ink: #E4EAE3; --muted: #9AAA9F;
+    --line: #314036; --barn: #6FAF80; --straw: #E2BA4C; --heat: #E06B5B;
+    --cold: #6AAAD0; --air: #B395D6; --ok: #6FBF7E; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: "Segoe UI", Ubuntu, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px; line-height: 1.45;
+}
+a { color: var(--barn); }
+header.top {
+  background: var(--barn); color: #fff; display: flex; align-items: center;
+  gap: 24px; padding: 12px 28px; flex-wrap: wrap;
+}
+@media (prefers-color-scheme: dark) { header.top { background: #22412D; } }
+header.top .brand { font-weight: 700; font-size: 17px; margin-right: auto; }
+header.top .brand small { display: block; font-weight: 400; opacity: .8; font-size: 12px; }
+header.top nav a {
+  color: #fff; text-decoration: none; padding: 6px 10px; border-radius: 6px; opacity: .85;
+}
+header.top nav a.on, header.top nav a:hover { background: rgba(255,255,255,.16); opacity: 1; }
+header.top .who { font-size: 13px; opacity: .9; }
+main { max-width: 1240px; margin: 0 auto; padding: 22px 28px 60px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 0 0 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 2fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.g5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 960px) { .g2, .g4, .g5 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .g2, .g4, .g5 { grid-template-columns: 1fr; } main { padding: 16px; } }
+
+/* the house status banner: the one bold element */
+.house {
+  border-radius: 12px; padding: 22px 26px; color: #fff; margin-bottom: 16px;
+  display: flex; gap: 28px; align-items: center; flex-wrap: wrap;
+  background: var(--ok); transition: background .4s;
+}
+.house.s-Heat { background: var(--heat); }
+.house.s-Cold { background: var(--cold); }
+.house.s-Poor { background: var(--air); }
+.house.s-none { background: #6B7A70; }
+.house .state { font-size: 34px; font-weight: 700; line-height: 1.1; }
+.house .conf { opacity: .9; font-size: 14px; }
+.house .act { flex: 1; min-width: 260px; font-size: 15px; border-left: 2px solid rgba(255,255,255,.4); padding-left: 22px; }
+
+.reading .label { color: var(--muted); font-size: 13px; }
+.reading .val { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.reading .val small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.band { height: 6px; background: var(--line); border-radius: 3px; margin-top: 8px; position: relative; }
+.band .ok { position: absolute; top: 0; bottom: 0; background: var(--ok); opacity: .45; border-radius: 3px; }
+.band .dot { position: absolute; top: -4px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); margin-left: -7px; transition: left .4s; }
+.reading .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+.devices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dev { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+.dev b { font-weight: 600; }
+.pill { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--line); color: var(--muted); font-weight: 600; }
+.pill.on { background: var(--straw); color: #2B2105; }
+button.pill { border: 0; cursor: pointer; }
+button.pill:disabled { cursor: default; }
+
+.probs .row { display: grid; grid-template-columns: 130px 1fr 52px; gap: 10px; align-items: center; margin: 7px 0; font-size: 14px; }
+.probs .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.probs .bar i { display: block; height: 100%; background: var(--barn); transition: width .4s; }
+.probs .row span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.btn { background: var(--barn); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-size: 14px; cursor: pointer; font-family: inherit; }
+.btn.alt { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.stop { background: var(--heat); }
+.btn:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--straw); outline-offset: 2px; }
+input, select, textarea {
+  font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--panel); color: var(--ink); width: 100%;
+}
+label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+
+canvas { width: 100%; height: 240px; display: block; }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 5px; }
+
+.alert-item { border-left: 4px solid var(--straw); padding: 6px 10px; margin-bottom: 8px; font-size: 13px; background: var(--paper); border-radius: 0 6px 6px 0; }
+.alert-item.Critical { border-color: var(--heat); }
+.alert-item time { color: var(--muted); font-size: 12px; display: block; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; }
+td.num { font-variant-numeric: tabular-nums; }
+.tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+.tag.Normal { background: rgba(63,138,79,.18); color: var(--ok); }
+.tag.Warning { background: rgba(212,167,44,.22); color: #8A6A10; }
+.tag.Critical { background: rgba(184,58,43,.16); color: var(--heat); }
+@media (prefers-color-scheme: dark) { .tag.Warning { color: var(--straw); } }
+
+.flash { background: var(--straw); color: #2B2105; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; }
+.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.login-card { width: 100%; max-width: 400px; }
+.login-card h1 { color: var(--barn); }
+.stat { font-size: 32px; font-weight: 700; color: var(--barn); font-variant-numeric: tabular-nums; }
+.figs img { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.hidden { display: none !important; }
+header.top nav a { cursor: pointer; }
+.mini { font-size: 12px; color: var(--muted); }
+.cm { border-collapse: collapse; margin: 0 auto; }
+.cm td, .cm th { text-align: center; padding: 10px 12px; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.badge-offline { font-size: 11px; background: rgba(255,255,255,.18); padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginView" class="login-wrap">
+  <form class="panel login-card" id="loginForm">
+    <h1>Smart Poultry House Controller</h1>
+    <p class="sub">Sign in to monitor and control the poultry house.</p>
+    <div class="flash hidden" id="loginErr">Invalid username or password.</div>
+    <p><label for="u">Username</label><input id="u" required autofocus autocomplete="username"></p>
+    <p><label for="p">Password</label><input id="p" type="password" required autocomplete="current-password"></p>
+    <button class="btn" style="width:100%">Sign in</button>
+    <p class="mini" style="margin-top:12px">Default administrator: admin / admin123</p>
+  </form>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="appView" class="hidden">
+<header class="top">
+  <div class="brand">Smart Poultry House Controller<small>IoT sensing with deep neural network control<span class="badge-offline">runs offline</span></small></div>
+  <nav>
+    <a data-page="dashboard" class="on">Dashboard</a>
+    <a data-page="logs">Sensor logs</a>
+    <a data-page="alerts">Alerts</a>
+    <a data-page="performance">Model performance</a>
+    <a data-page="users" id="navUsers">Users</a>
+  </nav>
+  <div class="who"><span id="who"></span> &nbsp;<a id="logout" style="color:#fff;cursor:pointer;text-decoration:underline">Log out</a></div>
+</header>
+<main>
+  <div class="flash hidden" id="flash"></div>
+
+  <!-- DASHBOARD -->
+  <section id="page-dashboard">
+    <h1>Live poultry house dashboard</h1>
+    <p class="sub">Readings arrive from the sensor node (or the built-in simulator), pass through the DNN, and the controller switches the relays.</p>
+    <div class="controls">
+      <button class="btn" id="simBtn">Start sensor simulation</button>
+      <button class="btn alt" id="modeBtn">Switch to manual override</button>
+      <label style="margin:0 0 0 8px" for="age">Flock age (days)</label>
+      <input id="age" type="number" min="1" max="42" style="width:80px">
+      <span class="sub" style="margin:0" id="comfort"></span>
+    </div>
+    <div class="house s-none" id="house">
+      <div><div class="state" id="pred">Waiting for data</div><div class="conf" id="conf">Start the simulation or test a reading below</div></div>
+      <div class="act" id="action">No reading yet.</div>
+    </div>
+    <div class="grid g5" style="margin-bottom:16px">
+      <div class="panel reading"><div class="label">Temperature (DHT22)</div><div class="val" id="v-t">--<small> °C</small></div><div class="band"><div class="ok" id="ok-t"></div><div class="dot" id="d-t"></div></div><div class="note" id="n-t"></div></div>
+      <div class="panel reading"><div class="label">Relative humidity (DHT22)</div><div class="val" id="v-h">--<small> %</small></div><div class="band"><div class="ok" id="ok-h"></div><div class="dot" id="d-h"></div></div><div class="note">Optimal 50 to 70%</div></div>
+      <div class="panel reading"><div class="label">Ammonia (MQ-135)</div><div class="val" id="v-a">--<small> ppm</small></div><div class="band"><div class="ok" id="ok-a"></div><div class="dot" id="d-a"></div></div><div class="note">Keep below 20 ppm</div></div>
+      <div class="panel reading"><div class="label">Light (LDR)</div><div class="val" id="v-l">--<small> lux</small></div><div class="band"><div class="ok" id="ok-l"></div><div class="dot" id="d-l"></div></div><div class="note">At least 20 lux</div></div>
+      <div class="panel reading"><div class="label">Feed level (ultrasonic)</div><div class="val" id="v-f">--<small> %</small></div><div class="band"><div class="ok" id="ok-f"></div><div class="dot" id="d-f"></div></div><div class="note">Refill below 20%</div></div>
+    </div>
+    <div class="grid g2" style="margin-bottom:16px">
+      <div class="panel">
+        <h2>Environment trend (last 40 readings)</h2>
+        <canvas id="chart" height="240"></canvas>
+        <div class="legend"><span><i style="background:var(--heat)"></i>Temperature °C</span><span><i style="background:var(--cold)"></i>Humidity %</span><span><i style="background:var(--air)"></i>Ammonia ppm</span><span><i style="background:var(--ok);opacity:.4;height:8px"></i>Comfort zone</span></div>
+      </div>
+      <div class="panel">
+        <h2>DNN output probabilities</h2>
+        <div class="probs" id="probs"></div>
+        <h2 style="margin-top:18px">Actuators (relay module)</h2>
+        <div class="devices" id="devices"></div>
+      </div>
+    </div>
+    <div class="grid g2">
+      <div class="panel">
+        <h2>Test the controller with your own reading</h2>
+        <p class="sub">Enter values to show how the DNN responds, for example 27.5 °C with 90% humidity at day 21.</p>
+        <div class="form-grid">
+          <div><label for="m-t">Temperature °C</label><input id="m-t" type="number" step="0.1" value="27.5"></div>
+          <div><label for="m-h">Humidity %</label><input id="m-h" type="number" step="0.1" value="90"></div>
+          <div><label for="m-a">Ammonia ppm</label><input id="m-a" type="number" step="0.1" value="10"></div>
+          <div><label for="m-l">Light lux</label><input id="m-l" type="number" value="300"></div>
+          <div><label for="m-f">Feed level %</label><input id="m-f" type="number" value="70"></div>
+          <div><button class="btn" id="mBtn" style="width:100%">Run through DNN</button></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Latest alerts</h2>
+        <div id="alertsMini"><p class="sub">No alerts yet.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGS -->
+  <section id="page-logs" class="hidden">
+    <h1>Sensor logs</h1>
+    <p class="sub" id="logCount"></p>
+    <div class="controls">
+      <button class="btn" data-filter="">All</button>
+      <button class="btn alt" data-filter="Normal">Normal</button>
+      <button class="btn alt" data-filter="Warning">Warning</button>
+      <button class="btn alt" data-filter="Critical">Critical</button>
+      <button class="btn alt" id="exportBtn" style="margin-left:auto">Export CSV</button>
+      <button class="btn alt" id="clearBtn">Clear logs</button>
+    </div>
+    <div class="panel table-wrap"><table id="logTable"></table></div>
+  </section>
+
+  <!-- ALERTS -->
+  <section id="page-alerts" class="hidden">
+    <h1>Alerts</h1>
+    <p class="sub">Alerts generated automatically by the controller. Escalate an alert to notify the farm manager.</p>
+    <div class="panel table-wrap"><table id="alertTable"></table></div>
+  </section>
+
+  <!-- USERS -->
+  <section id="page-users" class="hidden">
+    <h1>User management</h1>
+    <p class="sub">Register poultry house management staff. Passwords are stored as SHA-256 hashes, never as plain text.</p>
+    <form class="panel" id="userForm" style="margin-bottom:16px">
+      <h2>User's input form</h2>
+      <div class="form-grid">
+        <div><label>First name</label><input name="first_name" required></div>
+        <div><label>Last name</label><input name="last_name" required></div>
+        <div><label>Management role</label><select name="role"><option>Farm Manager</option><option>Poultry Attendant</option><option>Veterinary Officer</option><option>Technician</option></select></div>
+        <div><label>Gender</label><select name="gender"><option>Female</option><option>Male</option></select></div>
+        <div style="grid-column:span 2"><label>Address</label><input name="address"></div>
+        <div><label>Username</label><input name="username" required></div>
+        <div><label>Password</label><input name="password" type="password" required minlength="6"></div>
+        <div><label><input type="checkbox" name="is_admin" style="width:auto"> Administrator</label></div>
+        <div><button class="btn" style="width:100%">Register user</button></div>
+      </div>
+    </form>
+    <div class="panel table-wrap"><table id="userTable"></table></div>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section id="page-performance" class="hidden">
+    <h1>Model performance</h1>
+    <p class="sub" id="perfSub"></p>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="panel"><div class="sub" style="margin:0">Test accuracy</div><div class="stat" id="pAcc"></div></div>
+      <div class="panel"><div class="sub" style="margin:0">Macro F1-score</div><div class="stat" id="pF1"></div></div>
+      <div class="panel"><div class="sub" style="margin:0">Training epochs</div><div class="stat" id="pEp"></div></div>
+      <div class="panel"><div class="sub" style="margin:0">Readings logged</div><div class="stat" id="pLog"></div></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px"><h2>Network architecture</h2><p style="margin:0" id="pArch"></p></div>
+    <div class="panel table-wrap" style="margin-bottom:16px"><h2>Per-class results</h2><table id="pClass"></table></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-bottom:16px">
+      <div class="panel"><h2>Confusion matrix</h2><div class="table-wrap"><table class="cm" id="pCM"></table></div><p class="mini" style="text-align:center">Rows: actual class. Columns: predicted class.</p></div>
+      <div class="panel"><h2>Training loss curve</h2><canvas id="lossChart" height="240"></canvas></div>
+    </div>
+    <div class="panel table-wrap"><h2>Environmental stability (1,200 simulated readings, day 21)</h2><table id="pStab"></table></div>
+  </section>
+</main>
+</div>
+
+<script>
+const MODEL = {"min": [-0.39169435215946835, -0.5510491700595052, 0.0, -0.024390243902439025], "scale": [0.03322259136212624, 0.015659254619480114, 0.02302025782688766, 0.024390243902439025], "W": [[[0.0, 0.339867, -0.241412, -0.001823, -0.0, -0.2608, -0.763821, 0.735422, 0.61507, -0.125664, 0.0, 0.784749, 0.51019, 0.0, -0.0, -0.0, -0.359664, -0.0, 0.277978, 0.305149, 0.016352, 0.0, -0.535776, -0.367407, 0.42321, 0.76198, -0.630851, 0.0, -0.247062, -0.445587, 0.375598, -0.53392], [-0.0, 0.649487, 1.135295, 0.042419, -0.0, -0.130013, 0.253369, 0.082641, -0.276755, 0.052239, -0.0, 0.198374, 0.094277, -0.0, -0.0, 0.0, -0.05326, -0.0, 0.343499, 0.399584, 0.273629, -0.0, 0.277028, 1.212159, -0.198793, -0.132306, -0.130962, -0.0, 0.079239, -0.086052, 0.455362, 0.003262], [0.0, -0.07908, -0.733125, 1.047624, -0.0, 1.132306, -0.117162, -0.416411, -0.617952, 0.618219, 0.0, -0.105434, -0.343238, -0.0, -0.0, 0.0, 0.830306, 0.0, -0.498177, -0.505794, -0.209732, -0.0, 0.340922, 0.206371, 0.741324, -0.335021, -0.464936, 0.0, 0.631991, -0.083731, 0.636061, -0.343805], [-0.0, 0.079986, -0.141416, -0.10107, -0.0, 0.084392, -0.228804, 0.257016, 0.48936, -0.275692, -0.0, 0.365798, -0.124045, 0.0, -0.0, 0.0, 0.192603, -0.0, 0.194162, 0.496913, 0.162749, 0.0, 0.260974, -0.090511, 0.542779, 0.612159, -0.278222, 0.0, -0.230643, -0.223801, 0.479182, 0.116218]], [[0.0, -0.0, -0.0, 0.0, 0.0, -0.0, -0.0, -0.0, -0.0, -0.0, 0.0, 0.0, -0.0, 0.0, -0.0, 0.0], [0.322368, -0.13675, 0.0, -0.14511, -0.0, -0.02533, 0.359974, 0.49851, 0.044759, 0.066078, 0.189231, 0.181356, 0.388627, 0.073251, -0.074394, 0.209936], [0.431724, -0.366102, -0.0, -0.000376, 0.0, 0.656526, 0.725802, 0.866375, 0.581016, -0.262635, -0.264472, -0.15086, 1.968457, 0.068378, 0.176047, -0.027903], [-0.461341, 0.297814, 0.0, 0.055127, -0.0, -1.17534, -0.261789, 0.613388, -0.464307, 0.123351, 0.036722, 1.111751, 0.930122, 0.625428, -1.101908, -1.150652], [0.0, 0.0, 0.0, -0.0, -0.0, -0.0, 0.0, 0.0, -0.0, -0.0, 0.0, 0.0, -0.0, 0.0, -0.0, 0.0], [-0.037456, 0.767003, -0.0, 0.057106, 0.0, -0.51424, -0.701143, 0.671638, -0.125629, 0.148645, -0.288548, 0.424855, -0.389457, 0.237425, -0.713499, -0.810315], [-0.385109, 0.723909, 0.0, -0.079595, -0.0, 0.856699, 0.511408, -0.291244, -0.320735, 0.124676, 0.1263, 0.669822, 0.657213, -0.677856, -0.07586, 0.712955], [1.157348, -0.227433, -0.0, -0.038549, -0.0, -0.097035, -0.643028, 0.626238, 1.042284, -0.0502, -0.135095, -0.635679, -0.27647, 0.369078, 0.42691, -0.408044], [0.217691, -0.143005, -0.0, -0.045711, 0.0, 0.454005, -0.448197, -0.249139, 0.619825, -0.01788, 0.050342, -0.609433, -0.646891, 0.154826, 0.604871, 0.788655], [-0.129502, 0.746575, 0.0, -0.061529, 0.0, -0.439359, -0.186211, -0.255608, -0.603762, 0.27796, 0.202341, 0.597148, -0.564114, -0.068072, -0.415864, -0.445751], [0.0, -0.0, 0.0, -0.0, -0.0, 0.0, 0.0, -0.0, 0.0, 0.0, -0.0, -0.0, 0.0, 0.0, 0.0, -0.0], [0.335545, 0.197996, 0.0, -0.229031, 0.0, 0.213171, -0.218699, 0.033261, 0.068617, 0.035963, 0.06449, -0.14651, -0.092519, 0.289534, 0.269432, 0.425235], [0.122962, -0.099351, -0.0, 0.014377, 0.0, 0.37582, 0.323567, 0.015052, 0.003607, 0.053399, -0.059727, 0.254144, 0.186363, 0.028287, 0.565728, 0.576226], [0.0, -0.0, -0.0, 0.0, -0.0, 0.0, -0.0, -0.0, 0.0, 0.0, 0.0, -0.0, 0.0, 0.0, -0.0, 0.0], [-0.0, -0.0, -0.0, -0.0, -0.0, -0.0, -0.0, -0.0, 0.0, -0.0, -0.0, 0.0, -0.0, -0.0, -0.0, -0.0], [-0.0, 0.0, 0.0, -0.0, -0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0, -0.0, -0.0, -0.0, -0.0, -0.0], [-0.339369, 0.155272, -0.0, 0.05076, 0.0, -0.336079, -0.499737, 0.290647, -0.544835, -0.001322, -0.102402, 0.617866, -0.317253, 0.034306, -0.515045, -0.38024], [0.0, -0.0, 0.0, 0.0, -0.0, 0.0, -0.0, 0.0, 0.0, -0.0, 0.0, 0.0, 0.0, -0.0, -0.0, -0.0], [-0.02888, -0.351652, -0.0, -0.041939, 0.0, 0.82702, 0.02666, 0.170495, -0.103269, -0.042967, -0.333958, -0.25841, 0.392835, 0.227095, 0.485935, 0.433259], [0.408074, -0.172804, 0.0, -0.047989, 0.0, 0.891124, -0.080839, 0.436452, -0.052131, 0.294397, -0.006264, 0.261482, 0.330206, 0.173089, 0.700963, 0.379965], [0.130505, 0.095983, 0.0, -0.0, 0.0, 0.324047, -0.19837, -0.101528, 0.005096, 0.265301, -0.043991, 0.022181, -0.087301, -0.151276, 0.02704, -0.133154], [0.0, 0.0, -0.0, -0.0, 0.0, 0.0, 0.0, 0.0, -0.0, -0.0, -0.0, 0.0, -0.0, 0.0, -0.0, -0.0], [0.060533, 0.573847, 0.0, -0.198703, -0.0, 0.36615, 0.573396, -0.219441, -0.076593, -0.127697, 0.297502, 0.610691, 0.437724, 0.00011, -0.04197, -0.002949], [-0.26677, 0.092201, 0.0, 6.9e-05, 0.0, 0.067673, 0.460778, 1.026265, 0.476469, -0.212848, -0.12352, -0.240696, 2.024617, 0.554138, 0.079278, -0.310676], [0.484246, -0.200188, 0.0, 0.005749, 0.0, -0.508344, -0.760994, 0.65148, 0.203063, -0.000704, 0.131462, 0.116683, -0.922732, 0.278538, 0.11183, -0.494242], [0.538282, -0.415733, 0.0, -0.157294, 0.0, 0.362109, -0.350299, 0.049714, 0.650016, -0.146917, -0.027967, 0.041179, -0.357323, 0.428999, 0.713675, 0.56821], [-1.198527, 1.451912, -0.0, -0.069537, 0.0, 0.582589, 0.947442, -0.782012, -0.971926, -0.107648, -0.232148, 0.928542, 0.297402, -1.149302, -1.246178, 0.462225], [-0.0, -0.0, 0.0, 0.0, -0.0, 0.0, 0.0, -0.0, 0.0, -0.0, 0.0, 0.0, 0.0, -0.0, -0.0, -0.0], [-0.221172, 0.503707, -0.0, 0.086772, -0.0, -0.436845, 0.260495, 0.384214, -0.489246, -0.204628, 0.174781, 0.598107, -0.478383, -0.06715, -0.188065, -0.219321], [-0.691001, 0.996971, -0.0, 0.006407, -0.0, -0.770135, 0.859628, 0.419406, -1.004249, -0.003873, -0.177675, 1.502785, 1.201283, -0.471947, -1.488114, -0.797242], [0.001418, -0.197037, -0.0, 0.002251, 0.0, -0.015268, -0.184961, 0.619929, 0.459412, -0.045155, -0.339608, 0.2333, 0.332389, 0.682321, 0.065239, -0.842095], [-0.706756, 0.419935, -0.0, -0.014023, -0.0, 0.862805, 0.651272, -0.512022, -0.681695, -0.268725, -0.166951, 0.22665, 0.234483, -0.582201, -0.328804, 0.767332]], [[1.263545, -1.131573, 0.0, -0.761645, 1.072, 0.736376, 0.641207, 0.509492], [-0.286844, 0.585844, 0.0, 0.541496, 0.483319, -1.067832, -0.608582, -0.784383], [-0.0, 0.0, 0.0, 0.0, -0.0, -0.0, 0.0, 0.0], [-0.034899, 0.0381, 0.0, -0.017996, 0.049337, -0.0, -0.0, -0.042186], [0.0, 0.0, 0.0, 0.0, 0.0, -0.0, 0.0, -0.0], [-0.083837, 0.096362, 0.0, 0.838472, -0.242145, -0.076788, -0.207131, 0.497463], [-0.42361, 0.926432, -0.0, 0.26732, -0.158853, -0.321521, -0.568271, 0.10308], [0.085904, 0.386809, 0.0, -0.174868, 0.892076, 0.549637, -0.043789, 0.744113], [0.620364, -0.747206, 0.0, -0.299437, 0.646069, 0.83033, 0.950247, 0.784103], [-0.0, -0.145886, 0.0, 0.190116, -0.427191, 0.0, 0.0, 0.384982], [-0.0, 0.34116, 0.0, 0.315272, -0.303268, 0.0, -0.0, -0.417573], [-0.058748, 0.514371, 0.0, 0.539994, 0.735741, -0.251396, -0.335729, -0.536231], [-0.549982, 1.035097, 0.0, 0.015003, 0.008721, 0.629644, -0.758485, 0.367452], [0.456091, -0.513468, -0.0, -0.151006, 1.035417, 0.768215, 0.780517, 0.980587], [0.40328, -0.58791, -0.0, 0.44787, -0.649217, 0.343565, 0.544729, 0.848218], [0.095621, -0.065122, 0.0, 1.119466, -0.990487, 0.009733, 0.194308, 0.072434]], [[-1.328169, -0.057528, 0.990922, 0.375516], [0.553019, 0.250878, -1.527162, 0.24833], [0.0, 0.0, -0.0, -0.0], [1.056348, -0.648262, 0.650238, -0.756488], [-1.207704, -0.205179, -0.550629, 1.462604], [-1.484967, 0.672624, -1.13003, 1.466854], [-3.556761, 1.666665, -1.926626, 1.024879], [-0.96344, 1.064001, 0.053931, -0.937393]]], "b": [[-0.402572, -0.148943, -0.265303, -0.296041, -0.310379, -0.167521, 0.666737, -0.256465, 0.214448, 0.229109, -0.111346, 0.376459, 0.635802, -0.202669, -0.002247, -0.162582, 0.010302, -0.37813, 0.074137, 0.08274, -0.448089, -0.180734, 0.585118, -0.480726, -0.254035, 0.089891, 0.771765, -0.210611, 0.243288, 0.41934, -0.387887, 0.578325], [-0.484614, 0.285524, -0.063359, 0.294717, -0.27433, 0.246953, 0.500581, 0.130567, 0.16994, -0.215595, -0.256639, 0.416013, 0.248716, 0.005101, 0.239449, 0.271719], [0.310688, -0.053315, -0.445238, 0.268962, 0.236894, -0.71216, -0.043231, -0.184461], [-0.563666, -0.431378, 0.4315, -0.869482]], "classes": ["Cold Stress", "Heat Stress", "Optimal", "Poor Air Quality"], "out": "softmax"};
+const METRICS = {"accuracy": 92.94, "n_samples": 8000, "n_train": 6400, "n_test": 1600, "architecture": "4 input -> 32 -> 16 -> 8 (ReLU) -> 4 output (softmax)", "epochs": 63, "classes": ["Optimal", "Heat Stress", "Cold Stress", "Poor Air Quality"], "confusion_matrix": [[164, 10, 19, 2], [21, 612, 6, 8], [17, 4, 466, 3], [1, 15, 7, 245]], "per_class": {"Optimal": {"precision": 80.79, "recall": 84.1, "f1": 82.41, "support": 195}, "Heat Stress": {"precision": 95.48, "recall": 94.59, "f1": 95.03, "support": 647}, "Cold Stress": {"precision": 93.57, "recall": 95.1, "f1": 94.33, "support": 490}, "Poor Air Quality": {"precision": 94.96, "recall": 91.42, "f1": 93.16, "support": 268}}, "macro_f1": 91.23, "loss_curve": [1.3227, 1.1281, 0.8874, 0.6281, 0.4686, 0.3954, 0.3615, 0.3464, 0.3262, 0.3176, 0.2999, 0.2913, 0.2757, 0.2612, 0.2567, 0.247, 0.2274, 0.2238, 0.2151, 0.2074, 0.2011, 0.2014, 0.196, 0.191, 0.196, 0.1894, 0.1841, 0.1867, 0.1859, 0.1806, 0.18, 0.1792, 0.1769, 0.1823, 0.1744, 0.1727, 0.1779, 0.174, 0.1749, 0.172, 0.1748, 0.1835, 0.1736, 0.1721, 0.1753, 0.1892, 0.1798, 0.1731, 0.1742, 0.1683, 0.1679, 0.1655, 0.1679, 0.173, 0.1696, 0.1691, 0.1692, 0.1677, 0.1663, 0.1671, 0.1681, 0.1694, 0.1697], "class_distribution": {"Optimal": 973, "Heat Stress": 3238, "Cold Stress": 2449, "Poor Air Quality": 1340}};
+const EVAL = {
+  "latency": {
+    "requests": 1000,
+    "dnn_inference_mean_ms": 0.41,
+    "end_to_end_mean_ms": 3.19,
+    "end_to_end_p95_ms": 4.57,
+    "end_to_end_max_ms": 6.86,
+    "successful": 1000
+  },
+  "integrity": {
+    "records": 1000,
+    "records_with_missing_values": 0
+  },
+  "stability": {
+    "comfort_zone_c": [
+      25.2,
+      28.2
+    ],
+    "without_controller": {
+      "within_comfort_zone_pct": 22.4,
+      "temperature_std_c": 4.78,
+      "temperature_range_c": [
+        14.3,
+        39.2
+      ],
+      "ammonia_readings_at_or_above_20ppm": 1074,
+      "max_ammonia_ppm": 60,
+      "low_feed_readings_below_20pct": 1112
+    },
+    "fixed_threshold_controller": {
+      "within_comfort_zone_pct": 36.9,
+      "temperature_std_c": 2.0,
+      "temperature_range_c": [
+        23.0,
+        30.7
+      ],
+      "ammonia_readings_at_or_above_20ppm": 764,
+      "max_ammonia_ppm": 59.6,
+      "low_feed_readings_below_20pct": 80
+    },
+    "with_controller": {
+      "within_comfort_zone_pct": 80.9,
+      "temperature_std_c": 1.1,
+      "temperature_range_c": [
+        23.8,
+        29.2
+      ],
+      "ammonia_readings_at_or_above_20ppm": 124,
+      "max_ammonia_ppm": 24.6,
+      "low_feed_readings_below_20pct": 71
+    }
+  }
+};
+</script>
+<script>
+// Smart Poultry House Controller - standalone browser version.
+// The trained DNN (4-32-16-8-4 MLP, exported from dnn_model.py) runs here in JavaScript,
+// so the system works offline by opening index.html, or from GitHub Pages.
+"use strict";
+const $ = (id) => document.getElementById(id);
+const CLASSES = ["Optimal", "Heat Stress", "Cold Stress", "Poor Air Quality"];
+const FEED_LOW = 20, LIGHT_MIN = 20;
+
+// ------------------------------------------------------------ storage (local database)
+const mem = {};
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("spc_" + k); return v === null ? d : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } },
+  set(k, v) { mem[k] = v; try { localStorage.setItem("spc_" + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// ------------------------------------------------------------ SHA-256 (password hashing)
+function sha256(str) {
+  const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const bytes = new TextEncoder().encode(str);
+  const l = bytes.length, words = new Array(((l + 9 + 63) >> 6) << 4).fill(0);
+  for (let i = 0; i < l; i++) words[i >> 2] |= bytes[i] << (24 - (i % 4) * 8);
+  words[l >> 2] |= 0x80 << (24 - (l % 4) * 8);
+  words[words.length - 1] = l * 8;
+  let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const r = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let j = 0; j < words.length; j += 16) {
+    const w = words.slice(j, j + 16);
+    for (let i = 16; i < 64; i++) {
+      const s0 = r(w[i-15],7) ^ r(w[i-15],18) ^ (w[i-15] >>> 3), s1 = r(w[i-2],17) ^ r(w[i-2],19) ^ (w[i-2] >>> 10);
+      w[i] = (w[i-16] + s0 + w[i-7] + s1) | 0;
+    }
+    let [a,b,c,d,e,f,g,h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e,6) ^ r(e,11) ^ r(e,25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) | 0;
+      const t2 = ((r(a,2) ^ r(a,13) ^ r(a,22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    H = H.map((v, i) => (v + [a,b,c,d,e,f,g,h][i]) | 0);
+  }
+  return H.map((v) => (v >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+// ------------------------------------------------------------ DNN inference
+function comfortRange(age) {
+  age = Math.min(Math.max(age, 1), 42);
+  const c = 33.5 - (age - 1) * (14.0 / 41.0);
+  return [Math.round((c - 1.5) * 10) / 10, Math.round((c + 1.5) * 10) / 10];
+}
+function predict(t, h, a, age) {
+  let x = [t, h, a, age].map((v, i) => v * MODEL.scale[i] + MODEL.min[i]);   // min-max normalisation
+  for (let L = 0; L < MODEL.W.length; L++) {
+    const W = MODEL.W[L], b = MODEL.b[L], y = b.slice();
+    for (let j = 0; j < y.length; j++) for (let i = 0; i < x.length; i++) y[j] += x[i] * W[i][j];
+    x = L < MODEL.W.length - 1 ? y.map((v) => Math.max(0, v)) : y;            // ReLU on hidden layers
+  }
+  const m = Math.max(...x), e = x.map((v) => Math.exp(v - m)), s = e.reduce((p, q) => p + q, 0);
+  const probs = {};
+  MODEL.classes.forEach((c, i) => (probs[c] = Math.round((e[i] / s) * 1000) / 10));  // softmax
+  const label = CLASSES.reduce((best, c) => (probs[c] > probs[best] ? c : best), CLASSES[0]);
+  return { label, conf: probs[label], probs };
+}
+
+// ------------------------------------------------------------ control logic
+function decide(pred, r, recent) {
+  const [lo, hi] = comfortRange(r.bird_age);
+  const act = { fan: 0, heater: 0, feeder: 0, lights: 0 }, actions = [], alerts = [];
+  let status = "Normal";
+  if (pred === "Heat Stress") {
+    act.fan = 1; actions.push("Fans ON at 100%, heater OFF");
+    alerts.push(["Critical", `Heat stress predicted (${r.temperature} °C, ${r.humidity}% RH). Cooling activated.`]); status = "Critical";
+  } else if (pred === "Cold Stress") {
+    act.heater = 1; actions.push("Heater ON, fans at minimum");
+    alerts.push(["Warning", `Cold stress predicted (${r.temperature} °C, target ${lo}-${hi} °C for day ${r.bird_age}). Heating activated.`]); status = "Warning";
+  } else if (pred === "Poor Air Quality") {
+    act.fan = 1; let msg = "Ventilation ON to clear ammonia";
+    if (r.temperature < lo + 1) { act.heater = 1; msg += "; heater ON to offset heat loss"; }
+    actions.push(msg);
+    alerts.push(["Critical", `Poor air quality: ammonia at ${r.ammonia} ppm (limit 20 ppm). Ventilation activated.`]); status = "Critical";
+  } else actions.push("Optimal state: no corrective action");
+  if (r.feed_level < FEED_LOW) {
+    act.feeder = 1; actions.push("Feeder ON / refill feed");
+    alerts.push(["Warning", `Low feed level (${r.feed_level}%). Refill the feed silo.`]);
+    if (status === "Normal") status = "Warning";
+  }
+  if (r.light < LIGHT_MIN) { act.lights = 1; actions.push("Lights ON"); }
+  if (recent.length >= 5) {
+    const rise = r.temperature - recent[0];
+    if (rise >= 2 && pred !== "Heat Stress") {
+      alerts.push(["Warning", `Temperature rising (+${rise.toFixed(1)} °C over the last ${recent.length} readings). Heat stress likely soon; check ventilation.`]);
+      if (status === "Normal") status = "Warning";
+    }
+  }
+  return { act, action: actions.join("; "), status, alerts };
+}
+
+// ------------------------------------------------------------ controller state
+const S = {
+  bird_age: store.get("age", 21), mode: "auto",
+  manual: { fan: 0, heater: 0, feeder: 0, lights: 0 },
+  actuators: { fan: 0, heater: 0, feeder: 0, lights: 0 },
+  simulating: false, probs: null, user: null,
+};
+let logs = store.get("logs", []), alerts = store.get("alerts", []), users = store.get("users", null);
+if (!users) {
+  users = [{ id: 1, first_name: "System", last_name: "Administrator", role: "Farm Manager", gender: "-", address: "Poultry House",
+    username: "admin", password_hash: sha256("admin123"), is_admin: true, created_at: now() }];
+  store.set("users", users);
+}
+function now() { const d = new Date(), p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+const round1 = (v) => Math.round(v * 10) / 10;
+
+function processReading(raw, source) {
+  const r = { temperature: round1(+raw.temperature), humidity: round1(+raw.humidity), ammonia: round1(+raw.ammonia),
+    light: Math.round(+raw.light), feed_level: Math.round(+raw.feed_level), bird_age: S.bird_age };
+  const p = predict(r.temperature, r.humidity, r.ammonia, r.bird_age);
+  const recent = logs.slice(-6).map((x) => x.temperature);
+  let { act, action, status, alerts: al } = decide(p.label, r, recent);
+  if (S.mode === "manual") { act = { ...S.manual }; action = "MANUAL OVERRIDE: " + Object.entries(act).map(([k, v]) => `${k} ${v ? "ON" : "OFF"}`).join(", "); }
+  S.actuators = act; S.probs = p.probs;
+  const id = (logs.length ? logs[logs.length - 1].id : 0) + 1;
+  logs.push({ id, ...r, prediction: p.label, confidence: p.conf, status, action, ...act, source, created_at: now() });
+  if (logs.length > 2000) logs = logs.slice(-2000);
+  al.forEach(([level, message]) => alerts.push({ id: (alerts.length ? alerts[alerts.length - 1].id : 0) + 1, log_id: id, level, message, escalated: false, created_at: now() }));
+  if (alerts.length > 500) alerts = alerts.slice(-500);
+  store.set("logs", logs); store.set("alerts", alerts);
+  render();
+}
+
+// ------------------------------------------------------------ simulated poultry house (stands in for ESP32 + sensors)
+const sim = {
+  reset() { const [lo, hi] = comfortRange(S.bird_age); Object.assign(this, { t: (lo + hi) / 2, h: 62, a: 8, light: 350, feed: 80, tick: 0, event: null }); },
+  step() {
+    this.tick++; const [lo, hi] = comfortRange(S.bird_age), act = S.actuators, R = (a, b) => a + Math.random() * (b - a);
+    if (this.tick % 8 === 0) this.event = ["heat", "ammonia", "cold", "feed", "humid"][Math.floor(Math.random() * 5)];
+    if (this.event === "heat") this.t += R(0.5, 1); else if (this.event === "cold") this.t -= R(0.5, 1);
+    else if (this.event === "ammonia") this.a += R(2, 4); else if (this.event === "humid") this.h += R(2, 4);
+    else if (this.event === "feed") this.feed -= R(6, 10);
+    if (act.fan) { this.t -= 0.8; this.a -= 4; this.h -= 1.5; if (["heat", "ammonia", "humid"].includes(this.event) && Math.random() < 0.3) this.event = null; }
+    if (act.heater) { this.t += 0.8; if (this.event === "cold" && Math.random() < 0.3) this.event = null; }
+    if (act.feeder) { this.feed = Math.min(95, this.feed + 15); if (this.event === "feed") this.event = null; }
+    this.t += ((lo + hi) / 2 - this.t) * 0.03 + R(-0.3, 0.3);
+    this.h += (62 - this.h) * 0.05 + R(-1, 1);
+    this.a += (8 - this.a) * 0.02 + R(-0.4, 0.6);
+    this.feed -= R(0.2, 0.8); this.light = 350 + R(-40, 40);
+    this.t = Math.max(12, Math.min(42, this.t)); this.h = Math.max(30, Math.min(98, this.h));
+    this.a = Math.max(1, Math.min(60, this.a)); this.feed = Math.max(0, Math.min(100, this.feed));
+    return { temperature: this.t, humidity: this.h, ammonia: this.a, light: this.light, feed_level: this.feed };
+  },
+};
+let simTimer = null;
+function setSimulating(on) {
+  S.simulating = on; clearInterval(simTimer);
+  if (on) { sim.reset(); processReading(sim.step(), "simulator"); simTimer = setInterval(() => processReading(sim.step(), "simulator"), 3000); }
+  render();
+}
+
+// ------------------------------------------------------------ rendering
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let page = "dashboard", logFilter = "";
+
+function flash(msg) { const f = $("flash"); f.textContent = msg; f.classList.remove("hidden"); clearTimeout(flash.t); flash.t = setTimeout(() => f.classList.add("hidden"), 4000); }
+
+function placeBand(k, v, min, max, lo, hi) {
+  const pct = (x) => Math.max(0, Math.min(100, ((x - min) / (max - min)) * 100));
+  $("ok-" + k).style.left = pct(lo) + "%"; $("ok-" + k).style.width = pct(hi) - pct(lo) + "%"; $("d-" + k).style.left = pct(v) + "%";
+}
+function renderDashboard() {
+  const comfort = comfortRange(S.bird_age), r = logs[logs.length - 1];
+  $("comfort").textContent = `Comfort zone: ${comfort[0]} to ${comfort[1]} °C`;
+  if (document.activeElement !== $("age")) $("age").value = S.bird_age;
+  $("simBtn").textContent = S.simulating ? "Stop sensor simulation" : "Start sensor simulation";
+  $("simBtn").className = S.simulating ? "btn stop" : "btn";
+  $("modeBtn").textContent = S.mode === "manual" ? "Return to automatic (DNN) control" : "Switch to manual override";
+  if (r) {
+    const set = (k, v, u) => ($("v-" + k).innerHTML = `${v}<small> ${u}</small>`);
+    set("t", r.temperature, "°C"); set("h", r.humidity, "%"); set("a", r.ammonia, "ppm"); set("l", r.light, "lux"); set("f", r.feed_level, "%");
+    placeBand("t", r.temperature, 12, 42, comfort[0], comfort[1]); placeBand("h", r.humidity, 30, 100, 50, 70);
+    placeBand("a", r.ammonia, 0, 50, 0, 20); placeBand("l", r.light, 0, 500, 20, 500); placeBand("f", r.feed_level, 0, 100, 20, 100);
+    $("n-t").textContent = `Comfort zone ${comfort[0]} to ${comfort[1]} °C for day ${r.bird_age}`;
+    $("house").className = "house " + ({ "Heat Stress": "s-Heat", "Cold Stress": "s-Cold", "Poor Air Quality": "s-Poor" }[r.prediction] || "");
+    $("pred").textContent = r.prediction;
+    $("conf").textContent = `DNN confidence ${r.confidence}%  |  Status: ${r.status}  |  Reading #${r.id} at ${r.created_at.slice(11)}`;
+    $("action").textContent = r.action;
+  }
+  $("probs").innerHTML = CLASSES.map((c) => { const p = S.probs ? S.probs[c] : 0;
+    return `<div class="row"><span>${c}</span><div class="bar"><i style="width:${p}%"></i></div><span>${p}%</span></div>`; }).join("");
+  const names = { fan: "Fans", heater: "Heater", feeder: "Feeder", lights: "Lights" }, manual = S.mode === "manual";
+  $("devices").innerHTML = Object.keys(names).map((k) => { const on = S.actuators[k];
+    return `<div class="dev"><b>${names[k]}</b><button class="pill ${on ? "on" : ""}" data-dev="${k}" ${manual ? "" : "disabled"}>${on ? "ON" : "OFF"}</button></div>`; }).join("");
+  const last = alerts.slice(-6).reverse();
+  $("alertsMini").innerHTML = last.length ? last.map((a) => `<div class="alert-item ${a.level}"><time>${a.created_at} | ${a.level}</time>${esc(a.message)}</div>`).join("") : '<p class="sub">No alerts yet.</p>';
+  drawTrend(logs.slice(-40), comfort);
+}
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function prepCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight || 240;
+  cv.width = w * dpr; cv.height = h * dpr; const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  g.font = "11px Segoe UI, Arial"; return { g, w, h };
+}
+function drawTrend(hist, comfort) {
+  const { g, w, h } = prepCanvas($("chart")), pad = { l: 34, r: 10, t: 10, b: 20 };
+  const Y = (v) => pad.t + (1 - v / 100) * (h - pad.t - pad.b);
+  const X = (i) => pad.l + (hist.length < 2 ? 0 : (i / (hist.length - 1)) * (w - pad.l - pad.r));
+  g.strokeStyle = cssVar("--line"); g.fillStyle = cssVar("--muted");
+  for (let v = 0; v <= 100; v += 20) { g.beginPath(); g.moveTo(pad.l, Y(v)); g.lineTo(w - pad.r, Y(v)); g.stroke(); g.fillText(v, 4, Y(v) + 4); }
+  g.fillStyle = cssVar("--ok"); g.globalAlpha = 0.15; g.fillRect(pad.l, Y(comfort[1]), w - pad.l - pad.r, Y(comfort[0]) - Y(comfort[1])); g.globalAlpha = 1;
+  [["temperature", "--heat"], ["humidity", "--cold"], ["ammonia", "--air"]].forEach(([k, c]) => {
+    if (!hist.length) return; g.strokeStyle = cssVar(c); g.lineWidth = 2; g.beginPath();
+    hist.forEach((r, i) => (i ? g.lineTo(X(i), Y(Math.min(100, r[k]))) : g.moveTo(X(i), Y(Math.min(100, r[k]))))); g.stroke();
+  });
+}
+function renderLogs() {
+  const rows = logs.filter((r) => !logFilter || r.status === logFilter).slice(-300).reverse();
+  $("logCount").textContent = `${logs.length} records stored in the browser database. Showing the latest ${Math.min(300, rows.length)}.`;
+  document.querySelectorAll("[data-filter]").forEach((b) => (b.className = b.dataset.filter === logFilter ? "btn" : "btn alt"));
+  $("logTable").innerHTML = "<tr><th>ID</th><th>Time</th><th>Temp °C</th><th>RH %</th><th>NH₃ ppm</th><th>Light</th><th>Feed %</th><th>Age</th><th>DNN prediction</th><th>Conf.</th><th>Status</th><th>Action taken</th><th>Source</th></tr>" +
+    (rows.length ? rows.map((r) => `<tr><td class="num">${r.id}</td><td>${r.created_at}</td><td class="num">${r.temperature}</td><td class="num">${r.humidity}</td><td class="num">${r.ammonia}</td><td class="num">${r.light}</td><td class="num">${r.feed_level}</td><td class="num">${r.bird_age}</td><td>${r.prediction}</td><td class="num">${r.confidence}%</td><td><span class="tag ${r.status}">${r.status}</span></td><td>${esc(r.action)}</td><td>${r.source}</td></tr>`).join("")
+      : '<tr><td colspan="13">No records yet.</td></tr>');
+}
+function renderAlerts() {
+  const rows = alerts.slice().reverse().slice(0, 200);
+  $("alertTable").innerHTML = "<tr><th>ID</th><th>Time</th><th>Level</th><th>Message</th><th>Reading</th><th></th></tr>" +
+    (rows.length ? rows.map((a) => `<tr><td class="num">${a.id}</td><td>${a.created_at}</td><td><span class="tag ${a.level}">${a.level}</span></td><td style="white-space:normal">${esc(a.message)}</td><td class="num">#${a.log_id}</td><td>${a.escalated ? '<span class="tag Normal">Escalated</span>' : `<button class="btn alt" data-esc="${a.id}">Escalate alert</button>`}</td></tr>`).join("")
+      : '<tr><td colspan="6">No alerts yet.</td></tr>');
+}
+function renderUsers() {
+  $("userTable").innerHTML = "<tr><th>ID</th><th>Name</th><th>Role</th><th>Gender</th><th>Address</th><th>Username</th><th>Admin</th><th>Registered</th><th></th></tr>" +
+    users.map((u) => `<tr><td>${u.id}</td><td>${esc(u.first_name)} ${esc(u.last_name)}</td><td>${esc(u.role)}</td><td>${esc(u.gender)}</td><td>${esc(u.address)}</td><td>${esc(u.username)}</td><td>${u.is_admin ? "Yes" : "No"}</td><td>${u.created_at}</td><td>${u.id !== S.user.id ? `<button class="btn alt" data-del="${u.id}">Delete</button>` : ""}</td></tr>`).join("");
+}
+function renderPerformance() {
+  const m = METRICS;
+  $("perfSub").textContent = `Evaluation of the deep neural network on ${m.n_test.toLocaleString()} held-out test records (${m.n_train.toLocaleString()} used for training, ${m.n_samples.toLocaleString()} in total).`;
+  $("pAcc").textContent = m.accuracy + "%"; $("pF1").textContent = m.macro_f1 + "%"; $("pEp").textContent = m.epochs; $("pLog").textContent = logs.length;
+  $("pArch").textContent = `${m.architecture}. Inputs are temperature, relative humidity, ammonia and bird age, normalised to 0 to 1 with min-max scaling. Training used the Adam optimiser.`;
+  $("pClass").innerHTML = "<tr><th>Class</th><th>Precision %</th><th>Recall %</th><th>F1-score %</th><th>Test records</th></tr>" +
+    m.classes.map((c) => { const p = m.per_class[c]; return `<tr><td>${c}</td><td class="num">${p.precision}</td><td class="num">${p.recall}</td><td class="num">${p.f1}</td><td class="num">${p.support}</td></tr>`; }).join("");
+  const max = Math.max(...m.confusion_matrix.flat());
+  $("pCM").innerHTML = "<tr><th></th>" + m.classes.map((c) => `<th class="mini">${c}</th>`).join("") + "</tr>" +
+    m.confusion_matrix.map((row, i) => `<tr><th class="mini" style="text-align:right">${m.classes[i]}</th>` + row.map((v) =>
+      `<td style="background:rgba(63,138,79,${(0.08 + 0.75 * v / max).toFixed(2)});color:${v > max / 2 ? "#fff" : "inherit"}">${v}</td>`).join("") + "</tr>").join("");
+  const st = EVAL.stability, cols = [st.without_controller, st.fixed_threshold_controller, st.with_controller];
+  const rowsS = [["Readings within comfort zone", (d) => d.within_comfort_zone_pct + "%"], ["Temperature standard deviation", (d) => d.temperature_std_c + " °C"],
+    ["Temperature range", (d) => `${d.temperature_range_c[0]} to ${d.temperature_range_c[1]} °C`], ["Readings at or above 20 ppm ammonia", (d) => d.ammonia_readings_at_or_above_20ppm],
+    ["Highest ammonia level", (d) => d.max_ammonia_ppm + " ppm"]];
+  $("pStab").innerHTML = "<tr><th>Measure</th><th>No control</th><th>Fixed-threshold controller</th><th>Proposed DNN controller</th></tr>" +
+    rowsS.map(([n, f]) => `<tr><td>${n}</td>${cols.map((c) => `<td class="num">${f(c)}</td>`).join("")}</tr>`).join("");
+  const { g, w, h } = prepCanvas($("lossChart")), lc = m.loss_curve, pad = { l: 40, r: 10, t: 10, b: 26 }, top = Math.max(...lc);
+  const X = (i) => pad.l + (i / (lc.length - 1)) * (w - pad.l - pad.r), Y = (v) => pad.t + (1 - v / top) * (h - pad.t - pad.b);
+  g.strokeStyle = cssVar("--line"); g.fillStyle = cssVar("--muted");
+  for (let k = 0; k <= 4; k++) { const v = (top * k) / 4; g.beginPath(); g.moveTo(pad.l, Y(v)); g.lineTo(w - pad.r, Y(v)); g.stroke(); g.fillText(v.toFixed(2), 4, Y(v) + 4); }
+  g.fillText("Epoch", w / 2 - 14, h - 6); g.fillText("1", pad.l, h - 12); g.fillText(String(lc.length), w - pad.r - 14, h - 12);
+  g.strokeStyle = cssVar("--barn"); g.lineWidth = 2; g.beginPath(); lc.forEach((v, i) => (i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)))); g.stroke();
+}
+function render() {
+  if (!S.user) return;
+  ({ dashboard: renderDashboard, logs: renderLogs, alerts: renderAlerts, users: renderUsers, performance: renderPerformance })[page]();
+}
+function show(p) {
+  if (p === "users" && !S.user.is_admin) { flash("Only the administrator can manage users."); return; }
+  page = p;
+  document.querySelectorAll("main > section").forEach((s) => s.classList.toggle("hidden", s.id !== "page-" + p));
+  document.querySelectorAll("header nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === p));
+  render();
+}
+
+// ------------------------------------------------------------ events
+$("loginForm").onsubmit = (e) => {
+  e.preventDefault();
+  const u = users.find((x) => x.username === $("u").value.trim());
+  if (u && u.password_hash === sha256($("p").value)) {
+    S.user = u; $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden");
+    $("who").textContent = `Welcome, ${u.first_name} ${u.last_name} (${u.role})`;
+    $("navUsers").classList.toggle("hidden", !u.is_admin); $("p").value = ""; show("dashboard");
+  } else $("loginErr").classList.remove("hidden");
+};
+$("logout").onclick = () => { setSimulating(false); S.user = null; $("appView").classList.add("hidden"); $("loginView").classList.remove("hidden"); $("loginErr").classList.add("hidden"); };
+document.querySelectorAll("header nav a").forEach((a) => (a.onclick = () => show(a.dataset.page)));
+$("simBtn").onclick = () => setSimulating(!S.simulating);
+$("modeBtn").onclick = () => { if (S.mode === "manual") S.mode = "auto"; else { S.mode = "manual"; S.manual = { ...S.actuators }; } render(); };
+$("devices").onclick = (e) => { const d = e.target.dataset.dev; if (!d || S.mode !== "manual") return; S.manual[d] = S.manual[d] ? 0 : 1; S.actuators = { ...S.manual }; render(); };
+$("age").onchange = () => { S.bird_age = Math.max(1, Math.min(42, parseInt($("age").value) || 21)); store.set("age", S.bird_age); render(); };
+$("mBtn").onclick = () => processReading({ temperature: $("m-t").value, humidity: $("m-h").value, ammonia: $("m-a").value, light: $("m-l").value, feed_level: $("m-f").value }, "test input");
+document.querySelectorAll("[data-filter]").forEach((b) => (b.onclick = () => { logFilter = b.dataset.filter; renderLogs(); }));
+$("exportBtn").onclick = () => {
+  if (!logs.length) return flash("No records to export.");
+  const keys = Object.keys(logs[0]), csv = [keys.join(",")].concat(logs.map((r) => keys.map((k) => `"${String(r[k]).replace(/"/g, '""')}"`).join(","))).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "sensor_logs.csv"; a.click();
+};
+$("clearBtn").onclick = () => { if (confirm("Delete all sensor logs and alerts?")) { logs = []; alerts = []; store.set("logs", logs); store.set("alerts", alerts); S.probs = null; render(); flash("Logs cleared."); } };
+$("alertTable").onclick = (e) => { const id = +e.target.dataset.esc; if (!id) return; const a = alerts.find((x) => x.id === id); a.escalated = true; store.set("alerts", alerts); renderAlerts(); flash("Alert escalated to the farm manager."); };
+$("userForm").onsubmit = (e) => {
+  e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+  if (users.some((u) => u.username === f.username)) return flash("That username already exists.");
+  users.push({ id: Math.max(...users.map((u) => u.id)) + 1, first_name: f.first_name, last_name: f.last_name, role: f.role, gender: f.gender,
+    address: f.address, username: f.username, password_hash: sha256(f.password), is_admin: !!f.is_admin, created_at: now() });
+  store.set("users", users); e.target.reset(); renderUsers(); flash("User registered.");
+};
+$("userTable").onclick = (e) => { const id = +e.target.dataset.del; if (!id || !confirm("Delete this user?")) return; users = users.filter((u) => u.id !== id); store.set("users", users); renderUsers(); flash("User deleted."); };
+window.addEventListener("resize", render);
+
+</script>
+</body>
+</html>
