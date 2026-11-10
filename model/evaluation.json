@@ -1,0 +1,53 @@
+{
+  "latency": {
+    "requests": 1000,
+    "dnn_inference_mean_ms": 0.41,
+    "end_to_end_mean_ms": 3.19,
+    "end_to_end_p95_ms": 4.57,
+    "end_to_end_max_ms": 6.86,
+    "successful": 1000
+  },
+  "integrity": {
+    "records": 1000,
+    "records_with_missing_values": 0
+  },
+  "stability": {
+    "comfort_zone_c": [
+      25.2,
+      28.2
+    ],
+    "without_controller": {
+      "within_comfort_zone_pct": 22.4,
+      "temperature_std_c": 4.78,
+      "temperature_range_c": [
+        14.3,
+        39.2
+      ],
+      "ammonia_readings_at_or_above_20ppm": 1074,
+      "max_ammonia_ppm": 60,
+      "low_feed_readings_below_20pct": 1112
+    },
+    "fixed_threshold_controller": {
+      "within_comfort_zone_pct": 36.9,
+      "temperature_std_c": 2.0,
+      "temperature_range_c": [
+        23.0,
+        30.7
+      ],
+      "ammonia_readings_at_or_above_20ppm": 764,
+      "max_ammonia_ppm": 59.6,
+      "low_feed_readings_below_20pct": 80
+    },
+    "with_controller": {
+      "within_comfort_zone_pct": 80.9,
+      "temperature_std_c": 1.1,
+      "temperature_range_c": [
+        23.8,
+        29.2
+      ],
+      "ammonia_readings_at_or_above_20ppm": 124,
+      "max_ammonia_ppm": 24.6,
+      "low_feed_readings_below_20pct": 71
+    }
+  }
+}

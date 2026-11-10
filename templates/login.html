@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login | Smart Poultry House Controller</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="login-wrap">
+  <form class="panel login-card" method="post">
+    <h1>Smart Poultry House Controller</h1>
+    <p class="sub">Sign in to monitor and control the poultry house.</p>
+    {% for m in get_flashed_messages() %}<div class="flash">{{ m }}</div>{% endfor %}
+    <p><label for="u">Username</label><input id="u" name="username" required autofocus></p>
+    <p><label for="p">Password</label><input id="p" type="password" name="password" required></p>
+    <button class="btn" style="width:100%">Sign in</button>
+  </form>
+</div>
+</body>
+</html>

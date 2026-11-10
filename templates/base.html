@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Poultry House Controller</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <div class="brand">Smart Poultry House Controller<small>IoT sensing with deep neural network control</small></div>
+  <nav>
+    <a href="{{ url_for('dashboard') }}" class="{{ 'on' if page=='dashboard' }}">Dashboard</a>
+    <a href="{{ url_for('logs') }}" class="{{ 'on' if page=='logs' }}">Sensor logs</a>
+    <a href="{{ url_for('alerts') }}" class="{{ 'on' if page=='alerts' }}">Alerts</a>
+    <a href="{{ url_for('performance') }}" class="{{ 'on' if page=='performance' }}">Model performance</a>
+    {% if session.is_admin %}<a href="{{ url_for('users') }}" class="{{ 'on' if page=='users' }}">Users</a>{% endif %}
+  </nav>
+  <div class="who">Welcome, {{ session.name }} ({{ session.role }}) &nbsp;<a href="{{ url_for('logout') }}" style="color:#fff">Log out</a></div>
+</header>
+<main>
+  {% for m in get_flashed_messages() %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% block body %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

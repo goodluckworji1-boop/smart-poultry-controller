@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>User management</h1>
+<p class="sub">Register poultry house management staff. Passwords are stored as salted hashes.</p>
+<form class="panel" method="post" style="margin-bottom:16px">
+  <h2>User's input form</h2>
+  <div class="form-grid">
+    <div><label>First name</label><input name="first_name" required></div>
+    <div><label>Last name</label><input name="last_name" required></div>
+    <div><label>Management role</label><select name="role"><option>Farm Manager</option><option>Poultry Attendant</option><option>Veterinary Officer</option><option>Technician</option></select></div>
+    <div><label>Gender</label><select name="gender"><option>Female</option><option>Male</option></select></div>
+    <div style="grid-column:span 2"><label>Address</label><input name="address"></div>
+    <div><label>Username</label><input name="username" required></div>
+    <div><label>Password</label><input name="password" type="password" required minlength="6"></div>
+    <div><label><input type="checkbox" name="is_admin" style="width:auto"> Administrator</label></div>
+    <div><button class="btn" style="width:100%">Register user</button></div>
+  </div>
+</form>
+<div class="panel table-wrap">
+<table>
+  <tr><th>ID</th><th>Name</th><th>Role</th><th>Gender</th><th>Address</th><th>Username</th><th>Admin</th><th>Registered</th><th></th></tr>
+  {% for u in rows %}
+  <tr><td>{{ u.id }}</td><td>{{ u.first_name }} {{ u.last_name }}</td><td>{{ u.role }}</td><td>{{ u.gender }}</td><td>{{ u.address }}</td><td>{{ u.username }}</td><td>{{ 'Yes' if u.is_admin else 'No' }}</td><td>{{ u.created_at }}</td>
+  <td>{% if u.id != session.user_id %}<form method="post" action="{{ url_for('delete_user', uid=u.id) }}" onsubmit="return confirm('Delete this user?')"><button class="btn alt">Delete</button></form>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

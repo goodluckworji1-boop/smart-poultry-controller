@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Model performance</h1>
+<p class="sub">Evaluation of the deep neural network on {{ m.n_test }} held-out test records ({{ m.n_train }} used for training, {{ m.n_samples }} in total).</p>
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="panel"><div class="sub" style="margin:0">Test accuracy</div><div class="stat">{{ m.accuracy }}%</div></div>
+  <div class="panel"><div class="sub" style="margin:0">Macro F1-score</div><div class="stat">{{ m.macro_f1 }}%</div></div>
+  <div class="panel"><div class="sub" style="margin:0">Training epochs</div><div class="stat">{{ m.epochs }}</div></div>
+  <div class="panel"><div class="sub" style="margin:0">Readings logged</div><div class="stat">{{ s.n }}</div></div>
+</div>
+<div class="panel" style="margin-bottom:16px">
+  <h2>Network architecture</h2>
+  <p style="margin:0">{{ m.architecture }}. Inputs are temperature, relative humidity, ammonia and bird age, normalised to 0 to 1 with min-max scaling. Training used the Adam optimiser.</p>
+</div>
+<div class="panel table-wrap" style="margin-bottom:16px">
+  <h2>Per-class results</h2>
+  <table>
+    <tr><th>Class</th><th>Precision %</th><th>Recall %</th><th>F1-score %</th><th>Test records</th></tr>
+    {% for c in m.classes %}{% set p = m.per_class[c] %}
+    <tr><td>{{ c }}</td><td class="num">{{ p.precision }}</td><td class="num">{{ p.recall }}</td><td class="num">{{ p.f1 }}</td><td class="num">{{ p.support }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+<div class="grid figs" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-bottom:16px">
+  <div class="panel"><h2>Confusion matrix</h2><img src="{{ url_for('static', filename='img/confusion_matrix.png') }}" alt="Confusion matrix of the DNN"></div>
+  <div class="panel"><h2>Training loss curve</h2><img src="{{ url_for('static', filename='img/loss_curve.png') }}" alt="Training loss curve"></div>
+</div>
+<div class="panel table-wrap">
+  <h2>Live operation summary</h2>
+  <table>
+    <tr><th>Status</th><th>Readings</th></tr>
+    {% for b in by_status %}<tr><td><span class="tag {{ b.status }}">{{ b.status }}</span></td><td class="num">{{ b.n }}</td></tr>{% else %}<tr><td colspan="2">No live readings yet.</td></tr>{% endfor %}
+  </table>
+  {% if s.first %}<p class="sub" style="margin:10px 0 0">From {{ s.first }} to {{ s.last }}</p>{% endif %}
+</div>
+{% endblock %}

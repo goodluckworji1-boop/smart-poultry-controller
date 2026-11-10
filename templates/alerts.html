@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Alerts</h1>
+<p class="sub">Alerts generated automatically by the controller. Escalate an alert to notify the farm manager.</p>
+<div class="panel table-wrap">
+<table>
+  <tr><th>ID</th><th>Time</th><th>Level</th><th>Message</th><th>Reading</th><th></th></tr>
+  {% for a in rows %}
+  <tr><td class="num">{{ a.id }}</td><td>{{ a.created_at }}</td><td><span class="tag {{ a.level }}">{{ a.level }}</span></td><td style="white-space:normal">{{ a.message }}</td><td class="num">#{{ a.log_id }}</td>
+  <td>{% if a.escalated %}<span class="tag Normal">Escalated</span>{% else %}<form method="post" action="{{ url_for('escalate', aid=a.id) }}"><button class="btn alt">Escalate alert</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6">No alerts yet.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

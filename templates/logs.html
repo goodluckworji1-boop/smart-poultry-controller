@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Sensor logs</h1>
+<p class="sub">{{ total }} records stored in the database. Showing the latest 300.</p>
+<div class="controls">
+  <a class="btn {{ '' if not status else 'alt' }}" href="{{ url_for('logs') }}" style="text-decoration:none">All</a>
+  {% for s in ['Normal','Warning','Critical'] %}
+  <a class="btn {{ '' if status==s else 'alt' }}" href="{{ url_for('logs', status=s) }}" style="text-decoration:none">{{ s }}</a>
+  {% endfor %}
+  <a class="btn alt" href="{{ url_for('export_logs') }}" style="text-decoration:none;margin-left:auto">Export CSV</a>
+</div>
+<div class="panel table-wrap">
+<table>
+  <tr><th>ID</th><th>Time</th><th>Temp °C</th><th>RH %</th><th>NH₃ ppm</th><th>Light</th><th>Feed %</th><th>Age</th><th>DNN prediction</th><th>Conf.</th><th>Status</th><th>Action taken</th><th>Source</th></tr>
+  {% for r in rows %}
+  <tr><td class="num">{{ r.id }}</td><td>{{ r.created_at }}</td><td class="num">{{ r.temperature }}</td><td class="num">{{ r.humidity }}</td><td class="num">{{ r.ammonia }}</td><td class="num">{{ r.light|int }}</td><td class="num">{{ r.feed_level|int }}</td><td class="num">{{ r.bird_age }}</td><td>{{ r.prediction }}</td><td class="num">{{ r.confidence }}%</td><td><span class="tag {{ r.status }}">{{ r.status }}</span></td><td>{{ r.action }}</td><td>{{ r.source }}</td></tr>
+  {% else %}<tr><td colspan="13">No records yet.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}
