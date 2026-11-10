@@ -1,0 +1,10 @@
+{
+  "name": "Smart Poultry House Controller",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "pip install -r requirements.txt",
+  "postAttachCommand": "python app.py",
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": { "label": "Poultry Dashboard", "onAutoForward": "openBrowser" }
+  }
+}
